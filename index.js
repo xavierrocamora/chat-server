@@ -10,10 +10,17 @@ const app = express();
 const server = http.createServer(app);
 const io = socketio(server);
 
-//all code for managing socket connection is run inside 
-//as it receives a socket
+// all code for managing socket connection is run inside 
+// as it receives a socket
 io.on('connection', (socket) => {
     console.log('We have a new connection.');
+
+    socket.on('join', ({ name, room }, callback) => {
+        console.log(name, room);
+
+        const error = true;
+
+    });
 
     socket.on('disconnect', () => {
         console.log('User has left');
