@@ -30,6 +30,9 @@ io.on('connection', (socket) => {
         socket.broadcast.to(user.room).emit('message', { user: 'admin', text: `${user.name} has joined the room`});
         socket.join(user.room);
 
+        // keeping track of users in room
+        io.to(user.room).emit('roomData', { room: user.room , users: getUsersInRoom(user.room) });
+
         callback();  
     });
 
@@ -37,14 +40,22 @@ io.on('connection', (socket) => {
     socket.on('sendMessage', (message, callback) => {
         const user = getUser(socket.id);
 
+        // send the message and update the state of the room
         io.to(user.room).emit('message', { user: user.name, text: message });
+        io.to(user.room).emit('roomData', { room: user.room, users: getUsersInRoom(user.room) });
         console.log(message); //
         callback();
     });
 
     // event managing requests for user disconnection from socket
     socket.on('disconnect', () => {
-        console.log('User has left');
+        const user = removeUser(socket.id);
+
+        // we inform users about user leaving
+        if(user) {
+            io.to(user.room).emit('message', { user: 'admin', text: `${user.name} has left!`});
+            console.log('User has left');
+        }       
     })
 } );
 
