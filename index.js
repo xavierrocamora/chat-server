@@ -1,6 +1,7 @@
 const express = require('express');
 const socketio = require('socket.io');
 const http = require('http');
+const cors = require('cors');
 
 const { addUser, removeUser, getUser, getUsersInRoom } = require('./users.js');
 
@@ -11,6 +12,9 @@ const router = require('./router');
 const app = express();
 const server = http.createServer(app);
 const io = socketio(server);
+
+app.use(cors());
+app.use(router);
 
 // all code for managing socket connection is run inside 
 // as it receives a socket
@@ -26,10 +30,10 @@ io.on('connection', (socket) => {
 
         // if no error then welcome user, announce user joins the room 
         // to the rest of users in the room and get it in
+        socket.join(user.room);
         socket.emit('message', { user: 'admin', text: `${user.name}, welcome to the room ${user.room}`});
         socket.broadcast.to(user.room).emit('message', { user: 'admin', text: `${user.name} has joined the room`});
-        socket.join(user.room);
-
+        
         // keeping track of users in room
         io.to(user.room).emit('roomData', { room: user.room , users: getUsersInRoom(user.room) });
 
@@ -40,9 +44,8 @@ io.on('connection', (socket) => {
     socket.on('sendMessage', (message, callback) => {
         const user = getUser(socket.id);
 
-        // send the message and update the state of the room
+        // send the message
         io.to(user.room).emit('message', { user: user.name, text: message });
-        io.to(user.room).emit('roomData', { room: user.room, users: getUsersInRoom(user.room) });
         console.log(message); //
         callback();
     });
@@ -51,14 +54,13 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         const user = removeUser(socket.id);
 
-        // we inform users about user leaving
+        // we inform users about user leaving and keep track of room users
         if(user) {
             io.to(user.room).emit('message', { user: 'admin', text: `${user.name} has left!`});
+            io.to(user.room).emit('roomData', { room: user.room, users: getUsersInRoom(user.room) });
             console.log('User has left');
         }       
     })
-} );
+});
 
-app.use(router);
-
-server.listen(PORT, ()=> console.log(`Server has started on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server has started on port ${PORT}`));
